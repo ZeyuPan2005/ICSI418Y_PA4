@@ -4,6 +4,8 @@ import Login from './Login.jsx'
 import CreateProject from './CreateProject.jsx'
 import ProjectList from './ProjectList.jsx'
 import ProjectMembers from './ProjectMembers.jsx'
+import CreateUserStory from './CreateUserStory.jsx'
+import ProjectBacklog from './ProjectBacklog.jsx'
 import { request } from './api.js'
 import './App.css'
 
@@ -15,6 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
+  const [storyRevision, setStoryRevision] = useState(0)
   const selected = projects.find(project => project._id === selectedId) || projects[0]
 
   useEffect(() => {
@@ -46,9 +49,9 @@ function App() {
   return (
     <main>
       <header>
-        <p className="eyebrow">ICSI 418Y · Programming Assignment 3</p>
-        <h1>Projects &amp; memberships</h1>
-        <p>Create projects, choose leads, and bring your team together.</p>
+        <p className="eyebrow">ICSI 418Y · Programming Assignment 4</p>
+        <h1>Projects, user stories &amp; backlog</h1>
+        <p>Plan a project, build its team, and move stories through the backlog.</p>
       </header>
       <nav aria-label="Main navigation">
         <button aria-current={page === 'projects' ? 'page' : undefined} onClick={() => setPage('projects')}>Projects</button>
@@ -67,18 +70,22 @@ function App() {
                 <CreateProject users={users} onCreated={onCreated} />
                 <ProjectList projects={projects} users={users} selectedId={selected?._id} onSelect={setSelectedId} />
               </div>
-              <section className="form-card membership-section" aria-labelledby="members-heading">
-                <h2 id="members-heading">Manage memberships</h2>
-                {!projects.length ? <p>Create a project to manage its members.</p> : (
-                  <>
+              {!projects.length ? <section className="form-card membership-section"><p>Create a project to manage its members and backlog.</p></section> : (
+                <>
+                  <section className="form-card membership-section" aria-labelledby="members-heading">
+                    <h2 id="members-heading">Manage memberships</h2>
                     <label htmlFor="selected-project">Select a project</label>
                     <select id="selected-project" value={selected._id} onChange={event => setSelectedId(event.target.value)}>
                       {projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}
                     </select>
                     <ProjectMembers key={selected._id} project={selected} users={users} />
-                  </>
-                )}
-              </section>
+                  </section>
+                  <div className="forms story-grid">
+                    <CreateUserStory key={selected._id} projects={projects} users={users} selectedProjectId={selected._id} onCreated={() => setStoryRevision(value => value + 1)} />
+                    <ProjectBacklog key={`${selected._id}-${storyRevision}`} project={selected} users={users} onChanged={() => setStoryRevision(value => value + 1)} />
+                  </div>
+                </>
+              )}
             </>
           )}
         </>

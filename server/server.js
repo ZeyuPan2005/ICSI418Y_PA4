@@ -9,7 +9,10 @@ async function start() {
     try {
         client = new MongoClient(process.env.MONGO_URI);
         await client.connect();
-        const db = client.db("pa2");
+        // Keep PA3 compatibility while allowing PA4 development and tests to use
+        // an isolated database without changing the Atlas connection string.
+        const databaseName = process.env.MONGO_DB_NAME || "pa2";
+        const db = client.db(databaseName);
         await initializeProjects(db);
         console.log("Connected to MongoDB");
         // Do not accept requests until the connection and uniqueness index are ready.

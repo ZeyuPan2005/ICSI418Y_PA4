@@ -1,8 +1,8 @@
 # ICSI418Y_PA4
 
-Programming Assignment 4 for ICSI 418Y Software Engineering. This repository starts from the working PA3 application (signup/login, projects, project memberships) and will be extended with user stories and project backlogs.
+Programming Assignment 4 for ICSI 418Y Software Engineering. This repository extends the working PA3 application with user stories and project backlogs.
 
-> **Development status:** PA3 baseline imported. PA4 user stories, backlog, validation, and tests are not implemented yet. Before running the frontend, copy `client/src/assets/hero.png` from the original PA3 checkout; that binary asset is not yet included in this repository.
+PA4 adds validated user stories and a project-specific backlog while retaining the PA3 account, project, and membership workflows.
 
 ## Features
 
@@ -12,6 +12,8 @@ Programming Assignment 4 for ICSI 418Y Software Engineering. This repository sta
 - View, add, and remove project members.
 - Add the same user to different projects, but prevent duplicate membership in one project.
 - Automatically add project leads as members and prevent their removal.
+- Create user stories with a title, user-story description, priority, status, and optional assignee.
+- View each project's backlog and update story priority, status, assignment, or deletion.
 - Display clear feedback for invalid operations.
 
 ## Technologies
@@ -49,10 +51,11 @@ cd ../client
 npm install
 ```
 
-Create `server/.env` and set your Atlas connection string:
+Create `server/.env` and set your Atlas connection string. You can isolate PA4 data by choosing a separate database name:
 
 ```dotenv
 MONGO_URI=your_mongodb_connection_string
+MONGO_DB_NAME=pa4_dev
 ```
 
 Keep `.env` private. Make sure your current IP address is allowed in Atlas Network Access.
@@ -73,11 +76,12 @@ Open the local URL printed by Vite, usually `http://localhost:5173`. The backend
 
 ## Database
 
-The app uses the existing `pa2` database with three collections:
+The app uses `MONGO_DB_NAME` when set and otherwise preserves the PA3 `pa2` database for compatibility. PA4 adds a `UserStories` collection:
 
 - `users`: registered users from PA2.
 - `Projects`: projects with `name`, `description`, `status`, and `project_lead_id`.
 - `ProjectMemberships`: relationships stored as `project_id` and `user_id`.
+- `UserStories`: stories stored with `project_id`, `title`, `description`, `priority`, `status`, and nullable `assigned_user_id`.
 
 The relationship fields are MongoDB ObjectIds. A user may join multiple projects, and a project may contain multiple users. The project lead is also a member. A unique index prevents duplicate project/user pairs, and project creation uses a transaction to save the project and lead membership together.
 
@@ -93,10 +97,14 @@ The relationship fields are MongoDB ObjectIds. A user may join multiple projects
 | GET | `/api/projects/:projectId/members` | List project members |
 | POST | `/api/projects/:projectId/members` | Add a member |
 | DELETE | `/api/projects/:projectId/members/:userId` | Remove a member |
+| GET | `/api/projects/:projectId/stories` | List a project's backlog |
+| POST | `/api/user-stories` | Create a user story |
+| PATCH | `/api/user-stories/:storyId` | Update story fields except `project_id` |
+| DELETE | `/api/user-stories/:storyId` | Delete a story |
 
 ## Testing
 
-In `server/`, run `npm test` for API tests or `npm run test:integration` for live Atlas tests. Integration tests create temporary records and clean them up at the end; let the run finish.
+In `server/`, run `npm test` for API tests or `npm run test:integration` for live Atlas tests. Integration tests create temporary records in `MONGO_DB_NAME` and clean them up at the end; let the run finish.
 
 In `client/`, run `npm run lint` and `npm run build`.
 

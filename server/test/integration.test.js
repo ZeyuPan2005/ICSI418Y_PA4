@@ -1,5 +1,5 @@
 // Explicit opt-in: npm run test:integration. Uses the existing Atlas configuration.
-// Creates uniquely named fixtures in pa2, and cleans up only those exact fixture IDs.
+// Set MONGO_DB_NAME to an isolated PA4 database before running this test.
 require("dotenv").config({ path: require("node:path").join(__dirname, "../.env"), quiet: true });
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -15,14 +15,15 @@ test("Atlas integration: auth, projects, memberships, indexes and transaction ro
         await client.close();
         throw new Error(`Atlas connection failed (${error.name}); connection details withheld.`);
     }
-    const db = client.db("pa2");
-    const prefix = `pa3_test_${randomUUID()}`;
+    const db = client.db(process.env.MONGO_DB_NAME || "pa2");
+    const prefix = `pa4_test_${randomUUID()}`;
     const usernames = [0, 1, 2].map(index => `${prefix}_${index}`);
     const projectNames = ["Planning", "Active", "Completed", "Rollback"].map(name => `${prefix}_${name}`);
     t.after(async () => {
         try {
             const ownedProjects = await db.collection("Projects").find({ name: { $in: projectNames } }).toArray();
             const ids = ownedProjects.map(p => p._id);
+            await db.collection("UserStories").deleteMany({ project_id: { $in: ids } });
             await db.collection("ProjectMemberships").deleteMany({ project_id: { $in: ids } });
             await db.collection("Projects").deleteMany({ _id: { $in: ids } });
             await db.collection("users").deleteMany({ username: { $in: usernames } });
@@ -106,6 +107,24 @@ test("Atlas integration: auth, projects, memberships, indexes and transaction ro
         const remaining = await api("GET", `/api/projects/${first._id}/members`);
         assert.deepEqual(remaining.map(m => m.user_id), [people[0]._id]);
         assert.ok((await api("GET", `/api/projects/${second._id}/members`)).some(m => m.user_id === people[2]._id));
+    });
+
+    await t.test("user stories stay in their project and retain ObjectId relationships", async () => {
+        const created = await api("POST", "/api/user-stories", {
+            project_id: first._id,
+            title: "Visible backlog",
+            description: "As a user, I want a visible backlog, so that I can track work.",
+            priority: "High",
+            status: "To Do",
+            assigned_user_id: people[1]._id,
+        }, 201);
+        const stored = await db.collection("UserStories").findOne({ _id: new ObjectId(created.story._id) });
+        assert.ok(stored.project_id instanceof ObjectId);
+        assert.ok(stored.assigned_user_id instanceof ObjectId);
+        assert.equal((await api("GET", `/api/projects/${first._id}/stories`)).length, 1);
+        await api("PATCH", `/api/user-stories/${created.story._id}`, { status: "In Progress" }, 200);
+        await api("PATCH", `/api/user-stories/${created.story._id}`, { project_id: second._id }, 400);
+        await api("DELETE", `/api/user-stories/${created.story._id}`, undefined, 200);
     });
 
     await t.test("concurrent adds and database uniqueness index", async () => {
