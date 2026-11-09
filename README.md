@@ -1,6 +1,8 @@
-# ICSI418Y_PA3
+# ICSI418Y_PA4
 
-Programming Assignment 3 for ICSI 418Y Software Engineering. This application builds on the PA2 signup and login system by adding projects and project memberships.
+Programming Assignment 4 for ICSI 418Y Software Engineering. This repository starts from the working PA3 application (signup/login, projects, project memberships) and will be extended with user stories and project backlogs.
+
+> **Development status:** PA3 baseline imported. PA4 user stories, backlog, validation, and tests are not implemented yet. Before running the frontend, copy `client/src/assets/hero.png` from the original PA3 checkout; that binary asset is not yet included in this repository.
 
 ## Features
 
