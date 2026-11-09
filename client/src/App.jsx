@@ -75,7 +75,7 @@ function App() {
             <>
               <div className="forms project-grid">
                 <CreateProject users={users} onCreated={onCreated} />
-                <ProjectList projects={projects} users={users} selectedId={selected?._id} onSelect={setSelectedId} />
+                <ProjectList projects={projects} users={users} selectedId={selected?._id} onSelect={selectProject} />
               </div>
               {!projects.length ? <section className="form-card membership-section"><p>Create a project to manage its members and backlog.</p></section> : (
                 <>

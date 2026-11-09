@@ -86,6 +86,7 @@ function projectRoutes(db, client) {
         };
     }
 
+    // A registered user must also belong to the specific project before assignment.
     async function validateAssignment(project, assignedUserId) {
         if (!assignedUserId) return null;
         const userId = assignedUserId instanceof ObjectId ? assignedUserId : new ObjectId(assignedUserId);
@@ -138,6 +139,7 @@ function projectRoutes(db, client) {
         const project = await findProject(projectId);
         if (!project) return res.status(404).json({ message: "Project not found." });
         const objectStoryId = new ObjectId(storyId);
+        // Both IDs are required: a story from another project must not be editable here.
         const existing = await stories.findOne({ _id: objectStoryId, project_id: project._id });
         if (!existing) return res.status(404).json({ message: "User story not found in this project." });
 
@@ -258,6 +260,7 @@ function projectRoutes(db, client) {
         if (project.project_lead_id && sameId(project.project_lead_id, userId)) {
             return res.status(400).json({ message: "The Project Lead cannot be removed." });
         }
+        // Done stories still count: never filter this assignment check by status.
         const assignedStory = await stories.findOne({ project_id: project._id, assigned_user_id: userId });
         if (assignedStory) {
             return res.status(400).json({

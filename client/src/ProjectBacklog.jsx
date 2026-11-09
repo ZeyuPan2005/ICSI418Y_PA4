@@ -18,7 +18,7 @@ function ProjectBacklog({ project, members, users }) {
   useEffect(() => {
     const controller = new AbortController()
     request(`/api/projects/${project._id}/stories`, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) { setStories(data); setLoading(false) }
+      if (!controller.signal.aborted) { setStories(data); setError(''); setLoading(false) }
     }).catch(fetchError => {
       if (!controller.signal.aborted) { setError(fetchError.message); setLoading(false) }
     })
@@ -104,7 +104,7 @@ function ProjectBacklog({ project, members, users }) {
                   <div className="story-header"><h3>{story.title}</h3><div className="button-row"><button type="button" onClick={() => beginEdit(story)}>Edit</button><button type="button" className="remove" disabled={busyId === story._id} onClick={() => deleteStory(story)}>Delete</button></div></div>
                   <p className="description">{story.description}</p>
                   <div className="story-summary"><span className="status">{story.status}</span><span className="status">{story.priority}</span></div>
-                  <p className="story-meta">Assigned to {assigned ? userLabel(assigned) : 'no one'}</p>
+                  <p className="story-meta">Assigned member: {assigned ? userLabel(assigned) : 'Unassigned'}</p>
                 </>
               )}
             </article>

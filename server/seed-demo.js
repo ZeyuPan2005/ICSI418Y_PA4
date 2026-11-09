@@ -111,8 +111,8 @@ async function ensureStory(db, spec, projectsByName, usersByName) {
     const existing = await stories.findOne({ project_id: project._id, title: spec.title });
     if (existing) return "reused";
 
-    // Seed through the same lifecycle as the application. Creation starts To Do,
-    // then a valid update prepares the requested demonstration status.
+    // Match the normal To Do -> updated status progression for demo records.
+    // This seed script writes directly to MongoDB rather than calling the HTTP API.
     const story = {
         _id: new ObjectId(),
         project_id: project._id,

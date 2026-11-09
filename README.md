@@ -2,6 +2,8 @@
 
 Programming Assignment 4 for ICSI 418Y Software Engineering. This repository extends the working PA3 application with validated user stories and project backlogs.
 
+User stories describe planned features in the `As a [type of user], I want [goal], so that [benefit].` format. This application stores and manages the stories; it does not implement their described features. Story statuses (`To Do`, `In Progress`, `Done`) are separate from project statuses (`Planning`, `Active`, `Completed`). Done stories remain in the backlog.
+
 ## Features
 
 - Register new users and log in with existing accounts.
@@ -127,6 +129,17 @@ npm run seed:demo
 ```
 
 The seed refuses to run when the database is unspecified or named `pa2`. It never deletes unrelated records, and it prints only created/reused usernames, projects, and story titles. The demonstration projects are `Campus Event Platform` and `Study Planner`. The stories cover High, Medium, and Low priorities, To Do, In Progress, and Done statuses, assigned members, and an unassigned story.
+
+## Manual verification (before recording)
+
+1. Open the React client, select `Campus Event Platform`, and check that its three stories (including the Done story) are visible.
+2. Create a new story and confirm that it starts in `To Do`. Try the assignee list: only members of the selected project should appear.
+3. Edit a story's title, description, priority, status, and assignee. Test **Cancel** (no saved change) and **Save** (persistent change).
+4. Try to remove a non-lead member who has an assigned story, including a Done story. Removal must fail until that project's stories are reassigned, unassigned, or deleted.
+5. Switch to `Study Planner`; confirm its backlog is separate. Test deletion confirmation and refresh the browser to verify persistence.
+6. Inspect the `UserStories` collection in Atlas and show the `ObjectId` relationships. Check that PA3 signup, login, project creation, and membership operations still work.
+
+The demo seed is **non-destructive** and does not reset edited or deleted demonstration records to their original values when rerun.
 
 ## Note
 
