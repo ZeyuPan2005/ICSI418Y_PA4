@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { request, userLabel } from './api.js'
 
 // Keyed by project ID in App: switching projects resets state and cancels stale GETs.
-function ProjectMembers({ project, users }) {
+function ProjectMembers({ project, users, onMembersLoaded }) {
   const [members, setMembers] = useState([])
   const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -15,12 +15,12 @@ function ProjectMembers({ project, users }) {
   useEffect(() => {
     const controller = new AbortController()
     request(path, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) { setMembers(data); setLoadError(''); setLoading(false) }
+      if (!controller.signal.aborted) { setMembers(data); onMembersLoaded?.(data); setLoadError(''); setLoading(false) }
     }).catch(error => {
       if (!controller.signal.aborted) { setLoadError(error.message); setLoading(false) }
     })
     return () => controller.abort()
-  }, [path, revision])
+  }, [path, revision, onMembersLoaded])
 
   function refresh() {
     setLoading(true)
@@ -39,6 +39,7 @@ function ProjectMembers({ project, users }) {
       const result = await request(method === 'DELETE' ? `${path}/${targetId}` : path, {
         method, ...(method === 'POST' ? { body: JSON.stringify({ user_id: targetId }) } : {}),
       })
+      setUserId('')
       setFeedback({ message: result.message, error: false })
       refresh()
     } catch (error) {

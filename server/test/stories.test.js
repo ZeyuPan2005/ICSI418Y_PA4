@@ -43,33 +43,86 @@ function collection(initial = []) {
     };
 }
 
-test("user stories support project scoping, assignment updates, and immutable project ownership", async t => {
-    const projectId = new ObjectId();
-    const userId = new ObjectId();
+test("stories enforce project membership, full editing, and project-scoped ownership", async t => {
+    const leadA = new ObjectId();
+    const leadB = new ObjectId();
+    const member = new ObjectId();
+    const projectA = new ObjectId();
+    const projectB = new ObjectId();
     const db = {
+        collections: new Map(),
         collection(name) {
-            if (!this.collections) this.collections = new Map();
             if (!this.collections.has(name)) this.collections.set(name, collection());
             return this.collections.get(name);
         },
     };
-    db.collection("users").insertOne({ _id: userId, f_name: "Test", l_name: "User", username: "story-user" });
-    db.collection("Projects").insertOne({ _id: projectId, name: "Story project", project_lead_id: userId });
-    const api = await serve(t, db, { startSession() {} });
+    const users = db.collection("users");
+    await users.insertOne({ _id: leadA, f_name: "Lead", l_name: "A", username: "lead-a" });
+    await users.insertOne({ _id: leadB, f_name: "Lead", l_name: "B", username: "lead-b" });
+    await users.insertOne({ _id: member, f_name: "Project", l_name: "Member", username: "member" });
+    await db.collection("Projects").insertOne({ _id: projectA, name: "A", project_lead_id: leadA });
+    await db.collection("Projects").insertOne({ _id: projectB, name: "B", project_lead_id: leadB });
+    await db.collection("ProjectMemberships").insertOne({ project_id: projectA, user_id: leadA });
+    await db.collection("ProjectMemberships").insertOne({ project_id: projectA, user_id: member });
+    await db.collection("ProjectMemberships").insertOne({ project_id: projectB, user_id: leadB });
+    await db.collection("ProjectMemberships").insertOne({ project_id: projectB, user_id: member });
+    const api = await serve(t, db, {});
 
-    const created = await api("POST", "/api/user-stories", {
-        project_id: projectId.toHexString(), title: "First story",
-        description: "As a user, I want a backlog, so that work is visible.",
-        priority: "High", status: "To Do", assigned_user_id: userId.toHexString(),
+    const created = await api("POST", `/api/projects/${projectA}/stories`, {
+        title: "First story",
+        description: "As a student, I want a backlog, so that I can track work.",
+        priority: "High",
+        status: "Done",
+        assigned_user_id: member.toHexString(),
     }, 201);
-    assert.equal(created.story.project_id, projectId.toHexString());
-    assert.equal(created.story.assigned_user_id, userId.toHexString());
+    assert.equal(created.story.status, "To Do");
+    assert.equal(created.story.project_id, projectA.toHexString());
+    assert.equal((await db.collection("UserStories").findOne({ _id: new ObjectId(created.story._id) })).status, "To Do");
 
-    const listed = await api("GET", `/api/projects/${projectId}/stories`);
-    assert.equal(listed.length, 1);
-    const updated = await api("PATCH", `/api/user-stories/${created.story._id}`, { status: "Done" });
-    assert.equal(updated.story.status, "Done");
-    await api("PATCH", `/api/user-stories/${created.story._id}`, { project_id: new ObjectId().toHexString() }, 400);
-    await api("DELETE", `/api/user-stories/${created.story._id}`, undefined, 200);
-    await api("GET", `/api/projects/${projectId}/stories`);
+    await api("POST", `/api/projects/${projectA}/stories`, {
+        title: "Cross project assignment",
+        description: "As a student, I want a safe assignment, so that work stays with the right team.",
+        priority: "Low",
+        assigned_user_id: leadB.toHexString(),
+    }, 400);
+    const unassigned = await api("POST", `/api/projects/${projectA}/stories`, {
+        title: "Unassigned story",
+        description: "As a student, I want an unassigned story, so that the team can triage it.",
+        priority: "Medium",
+        assigned_user_id: null,
+    }, 201);
+    assert.equal(unassigned.story.assigned_user_id, null);
+
+    const edited = await api("PUT", `/api/projects/${projectA}/stories/${created.story._id}`, {
+        title: "Edited story",
+        description: "As an organizer, I want an edited backlog item, so that the team has clear work.",
+        priority: "Low",
+        status: "Done",
+        assigned_user_id: member.toHexString(),
+    }, 200);
+    assert.equal(edited.story.title, "Edited story");
+    assert.equal(edited.story.status, "Done");
+    await api("PUT", `/api/projects/${projectA}/stories/${created.story._id}`, { status: "To Do" }, 200);
+    await api("PUT", `/api/projects/${projectB}/stories/${created.story._id}`, { status: "Done" }, 404);
+    await api("DELETE", `/api/projects/${projectB}/stories/${created.story._id}`, undefined, 404);
+    await api("PUT", `/api/projects/${projectA}/stories/${created.story._id}`, { assigned_user_id: member.toHexString(), status: "Done" }, 200);
+    const blocked = await api("DELETE", `/api/projects/${projectA}/members/${member}`, undefined, 400);
+    assert.match(blocked.message, /Reassign, unassign, or delete/);
+    await api("PUT", `/api/projects/${projectA}/stories/${created.story._id}`, { assigned_user_id: null }, 200);
+    await api("DELETE", `/api/projects/${projectA}/members/${member}`, undefined, 200);
+
+    await api("POST", `/api/projects/${projectB}/stories`, {
+        title: "Other project story",
+        description: "As a student, I want another project story, so that unrelated work is separate.",
+        priority: "Low",
+        assigned_user_id: member.toHexString(),
+    }, 201);
+    await api("DELETE", `/api/projects/${projectA}/members/${member}`, undefined, 404);
+    await api("GET", `/api/projects/bad/stories`, undefined, 400);
+    await api("POST", `/api/projects/${projectA}/stories`, { title: "x", description: "y", priority: "Urgent" }, 400);
+    await api("PUT", `/api/projects/${projectA}/stories/${created.story._id}`, { status: "Paused" }, 400);
+    await api("POST", `/api/projects/${projectA}/stories`, { title: " ", description: "y", priority: "High" }, 400);
+    await api("POST", `/api/projects/${projectA}/stories`, { title: "x", description: " ", priority: "High" }, 400);
+    await api("PUT", `/api/projects/${projectA}/stories/bad`, {}, 400);
+    await api("DELETE", `/api/projects/${projectA}/stories/bad`, undefined, 400);
 });

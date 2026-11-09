@@ -118,6 +118,10 @@ textarea { resize: vertical; }
 .story-header h3 { margin-bottom: 8px; }
 .story-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
 .story-controls select { margin-bottom: 0; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.button-row .secondary { background: #526175; }
+.button-row .secondary:hover { background: #3c4a5e; }
+.story-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .story-meta { color: #526175; font-size: 14px; margin-bottom: 0; }
 .section-heading { display: flex; justify-content: space-between; gap: 12px; }
 

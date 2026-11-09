@@ -10,12 +10,13 @@ const { serve } = require("./helpers");
 
 test("Atlas integration: auth, projects, memberships, indexes and transaction rollback", { timeout: 120000 }, async t => {
     assert.ok(process.env.MONGO_URI, "Configure server/.env first.");
+    assert.equal(process.env.MONGO_DB_NAME, "pa4_dev", "Set MONGO_DB_NAME=pa4_dev before running integration tests.");
     const client = new MongoClient(process.env.MONGO_URI, { serverSelectionTimeoutMS: 15000 });
     try { await client.connect(); } catch (error) {
         await client.close();
         throw new Error(`Atlas connection failed (${error.name}); connection details withheld.`);
     }
-    const db = client.db(process.env.MONGO_DB_NAME || "pa2");
+    const db = client.db("pa4_dev");
     const prefix = `pa4_test_${randomUUID()}`;
     const usernames = [0, 1, 2].map(index => `${prefix}_${index}`);
     const projectNames = ["Planning", "Active", "Completed", "Rollback"].map(name => `${prefix}_${name}`);
@@ -109,22 +110,34 @@ test("Atlas integration: auth, projects, memberships, indexes and transaction ro
         assert.ok((await api("GET", `/api/projects/${second._id}/members`)).some(m => m.user_id === people[2]._id));
     });
 
-    await t.test("user stories stay in their project and retain ObjectId relationships", async () => {
-        const created = await api("POST", "/api/user-stories", {
-            project_id: first._id,
+    await t.test("user stories enforce same-project assignment and member-removal rules", async () => {
+        await api("POST", `/api/projects/${first._id}/members`, { user_id: people[2]._id }, 201);
+        const created = await api("POST", `/api/projects/${first._id}/stories`, {
             title: "Visible backlog",
             description: "As a user, I want a visible backlog, so that I can track work.",
             priority: "High",
-            status: "To Do",
-            assigned_user_id: people[1]._id,
+            status: "Done",
+            assigned_user_id: people[2]._id,
         }, 201);
         const stored = await db.collection("UserStories").findOne({ _id: new ObjectId(created.story._id) });
         assert.ok(stored.project_id instanceof ObjectId);
         assert.ok(stored.assigned_user_id instanceof ObjectId);
-        assert.equal((await api("GET", `/api/projects/${first._id}/stories`)).length, 1);
-        await api("PATCH", `/api/user-stories/${created.story._id}`, { status: "In Progress" }, 200);
-        await api("PATCH", `/api/user-stories/${created.story._id}`, { project_id: second._id }, 400);
-        await api("DELETE", `/api/user-stories/${created.story._id}`, undefined, 200);
+        assert.equal(created.story.status, "To Do");
+        await api("POST", `/api/projects/${first._id}/stories`, {
+            title: "Cross-project assignment",
+            description: "As a user, I want a safe assignment, so that work stays with the right project.",
+            priority: "Medium",
+            assigned_user_id: people[1]._id,
+        }, 400);
+        await api("PUT", `/api/projects/${first._id}/stories/${created.story._id}`, {
+            title: "Edited backlog", description: stored.description, priority: "Low", status: "Done", assigned_user_id: people[2]._id,
+        }, 200);
+        await api("PUT", `/api/projects/${second._id}/stories/${created.story._id}`, { status: "To Do" }, 404);
+        await api("DELETE", `/api/projects/${second._id}/stories/${created.story._id}`, undefined, 404);
+        await api("DELETE", `/api/projects/${first._id}/members/${people[2]._id}`, undefined, 400);
+        await api("PUT", `/api/projects/${first._id}/stories/${created.story._id}`, { assigned_user_id: null, status: "To Do" }, 200);
+        await api("DELETE", `/api/projects/${first._id}/members/${people[2]._id}`, undefined, 200);
+        await api("DELETE", `/api/projects/${first._id}/stories/${created.story._id}`, undefined, 200);
     });
 
     await t.test("concurrent adds and database uniqueness index", async () => {

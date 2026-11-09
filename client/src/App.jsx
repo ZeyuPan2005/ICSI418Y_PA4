@@ -14,6 +14,7 @@ function App() {
   const [users, setUsers] = useState([])
   const [projects, setProjects] = useState([])
   const [selectedId, setSelectedId] = useState('')
+  const [selectedMembers, setSelectedMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -44,6 +45,12 @@ function App() {
     // The committed API response immediately updates the list and selects the new project.
     setProjects(previous => [...previous, project])
     setSelectedId(project._id)
+    setSelectedMembers([])
+  }
+
+  function selectProject(projectId) {
+    setSelectedId(projectId)
+    setSelectedMembers([])
   }
 
   return (
@@ -75,14 +82,14 @@ function App() {
                   <section className="form-card membership-section" aria-labelledby="members-heading">
                     <h2 id="members-heading">Manage memberships</h2>
                     <label htmlFor="selected-project">Select a project</label>
-                    <select id="selected-project" value={selected._id} onChange={event => setSelectedId(event.target.value)}>
+                    <select id="selected-project" value={selected._id} onChange={event => selectProject(event.target.value)}>
                       {projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}
                     </select>
-                    <ProjectMembers key={selected._id} project={selected} users={users} />
+                    <ProjectMembers key={selected._id} project={selected} users={users} onMembersLoaded={setSelectedMembers} />
                   </section>
                   <div className="forms story-grid">
-                    <CreateUserStory key={selected._id} projects={projects} users={users} selectedProjectId={selected._id} onCreated={() => setStoryRevision(value => value + 1)} />
-                    <ProjectBacklog key={`${selected._id}-${storyRevision}`} project={selected} users={users} onChanged={() => setStoryRevision(value => value + 1)} />
+                    <CreateUserStory key={selected._id} projects={projects} members={selectedMembers} users={users} selectedProjectId={selected._id} onProjectChange={selectProject} onCreated={() => setStoryRevision(value => value + 1)} />
+                    <ProjectBacklog key={`${selected._id}-${storyRevision}`} project={selected} members={selectedMembers} users={users} />
                   </div>
                 </>
               )}

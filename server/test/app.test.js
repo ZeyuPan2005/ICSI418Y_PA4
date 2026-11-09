@@ -24,6 +24,10 @@ test("input validation rejects malformed requests before database access", async
     for (const method of ["GET", "POST", "DELETE"]) {
         await api(method, `/api/projects/bad/members${method === "DELETE" ? "/bad" : ""}`, method === "POST" ? {} : undefined, 400);
     }
+    await api("GET", "/api/projects/bad/stories", undefined, 400);
+    await api("POST", "/api/projects/bad/stories", {}, 400);
+    await api("PUT", `/api/projects/bad/stories/${projectId}`, {}, 400);
+    await api("DELETE", `/api/projects/${projectId}/stories/bad`, undefined, 400);
 });
 
 test("database failures produce safe JSON on every API and existing auth route", async t => {
@@ -35,6 +39,7 @@ test("database failures produce safe JSON on every API and existing auth route",
         ["GET", `/api/projects/${projectId}/members`],
         ["POST", `/api/projects/${projectId}/members`, { user_id: userId }],
         ["DELETE", `/api/projects/${projectId}/members/${userId}`],
+        ["GET", `/api/projects/${projectId}/stories`],
         ["POST", "/api/projects", { name: "P", description: "D", status: "Active", project_lead_id: leadId }],
         ["POST", "/signup", { f_name: "A", l_name: "B", username: "u", password: "p" }],
         ["POST", "/login", { username: "u", password: "p" }],

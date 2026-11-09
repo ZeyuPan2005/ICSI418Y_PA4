@@ -1,20 +1,17 @@
 # ICSI418Y_PA4
 
-Programming Assignment 4 for ICSI 418Y Software Engineering. This repository extends the working PA3 application with user stories and project backlogs.
-
-PA4 adds validated user stories and a project-specific backlog while retaining the PA3 account, project, and membership workflows.
+Programming Assignment 4 for ICSI 418Y Software Engineering. This repository extends the working PA3 application with validated user stories and project backlogs.
 
 ## Features
 
 - Register new users and log in with existing accounts.
 - Create projects with a name, description, status, and registered project lead.
-- View projects and their leads by name.
-- View, add, and remove project members.
-- Add the same user to different projects, but prevent duplicate membership in one project.
-- Automatically add project leads as members and prevent their removal.
-- Create user stories with a title, user-story description, priority, status, and optional assignee.
-- View each project's backlog and update story priority, status, assignment, or deletion.
-- Display clear feedback for invalid operations.
+- View, add, and remove project members while protecting project leads.
+- Create user stories with a title, user-story description, and priority.
+- Start every new story in `To Do`, then edit title, description, priority, status, or assignment.
+- Assign stories only to members of the same project, or leave them unassigned.
+- Prevent member removal while that member has assigned stories in the project.
+- View and manage each project's project-scoped backlog.
 
 ## Technologies
 
@@ -31,12 +28,15 @@ client/src/
   CreateProject.jsx       Project creation form
   ProjectList.jsx         Project list
   ProjectMembers.jsx      Member management
+  CreateUserStory.jsx     Story creation form
+  ProjectBacklog.jsx      Project-scoped backlog and editing
   api.js                  HTTP requests
 
 server/
   server.js               Database connection and startup
   app.js                  Express setup and account routes
-  projects.js             Project and membership API
+  projects.js             Project, membership, and story API
+  seed-demo.js            Guarded PA4 demonstration data setup
   test/                   Backend tests
 ```
 
@@ -51,7 +51,7 @@ cd ../client
 npm install
 ```
 
-Create `server/.env` and set your Atlas connection string. You can isolate PA4 data by choosing a separate database name:
+Create `server/.env` and set your Atlas connection string. Use `MONGO_DB_NAME=pa4_dev` for PA4 development:
 
 ```dotenv
 MONGO_URI=your_mongodb_connection_string
@@ -60,13 +60,13 @@ MONGO_DB_NAME=pa4_dev
 
 Keep `.env` private. Make sure your current IP address is allowed in Atlas Network Access.
 
-Start the backend in one terminal (from `server/`):
+Start the backend in one terminal from `server/`:
 
 ```bash
 npm start
 ```
 
-Start the frontend in a second terminal (from `client/`):
+Start the frontend in a second terminal from `client/`:
 
 ```bash
 npm run dev
@@ -74,7 +74,7 @@ npm run dev
 
 Open the local URL printed by Vite, usually `http://localhost:5173`. The backend API runs at `http://localhost:9000`.
 
-## Database
+## Database and business rules
 
 The app uses `MONGO_DB_NAME` when set and otherwise preserves the PA3 `pa2` database for compatibility. PA4 adds a `UserStories` collection:
 
@@ -83,9 +83,9 @@ The app uses `MONGO_DB_NAME` when set and otherwise preserves the PA3 `pa2` data
 - `ProjectMemberships`: relationships stored as `project_id` and `user_id`.
 - `UserStories`: stories stored with `project_id`, `title`, `description`, `priority`, `status`, and nullable `assigned_user_id`.
 
-The relationship fields are MongoDB ObjectIds. A user may join multiple projects, and a project may contain multiple users. The project lead is also a member. A unique index prevents duplicate project/user pairs, and project creation uses a transaction to save the project and lead membership together.
+All relationship fields are MongoDB ObjectIds. Every story belongs to one project and its `project_id` cannot change. A story can be assigned only to a member of its own project, including the project lead. A member with assigned stories cannot be removed until those stories are reassigned, unassigned, or deleted. New stories always begin in `To Do`. A unique index prevents duplicate project/user pairs, and project creation uses a transaction to save the project and lead membership together.
 
-## API Endpoints
+## API endpoints
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -96,17 +96,37 @@ The relationship fields are MongoDB ObjectIds. A user may join multiple projects
 | GET | `/api/projects` | List projects |
 | GET | `/api/projects/:projectId/members` | List project members |
 | POST | `/api/projects/:projectId/members` | Add a member |
-| DELETE | `/api/projects/:projectId/members/:userId` | Remove a member |
+| DELETE | `/api/projects/:projectId/members/:userId` | Remove a member when allowed |
 | GET | `/api/projects/:projectId/stories` | List a project's backlog |
-| POST | `/api/user-stories` | Create a user story |
-| PATCH | `/api/user-stories/:storyId` | Update story fields except `project_id` |
-| DELETE | `/api/user-stories/:storyId` | Delete a story |
+| POST | `/api/projects/:projectId/stories` | Create a story in `To Do` |
+| PUT | `/api/projects/:projectId/stories/:storyId` | Edit all story fields except `project_id` |
+| DELETE | `/api/projects/:projectId/stories/:storyId` | Delete a story from that project |
 
 ## Testing
 
-In `server/`, run `npm test` for API tests or `npm run test:integration` for live Atlas tests. Integration tests create temporary records in `MONGO_DB_NAME` and clean them up at the end; let the run finish.
+In `server/`, run `npm test` for local API tests. Set `MONGO_DB_NAME=pa4_dev` before running `npm run test:integration`. The integration suite refuses other databases, creates temporary records, and cleans up only those records at the end.
 
 In `client/`, run `npm run lint` and `npm run build`.
+
+## Demo data
+
+The repeatable demo seed uses the isolated `pa4_dev` database only. It creates or reuses the accounts `ZeyuPan2005`, `LinxuanSui2004`, and `FangruiLiu2004`, two projects, their memberships, and five user stories. Existing account passwords are preserved. New accounts use the local-only `PA4_DEMO_PASSWORD` value.
+
+Set these variables in the ignored `server/.env` file:
+
+```dotenv
+MONGO_DB_NAME=pa4_dev
+PA4_DEMO_PASSWORD=your_local_demo_password
+```
+
+Then run:
+
+```bash
+cd server
+npm run seed:demo
+```
+
+The seed refuses to run when the database is unspecified or named `pa2`. It never deletes unrelated records, and it prints only created/reused usernames, projects, and story titles. The demonstration projects are `Campus Event Platform` and `Study Planner`. The stories cover High, Medium, and Low priorities, To Do, In Progress, and Done statuses, assigned members, and an unassigned story.
 
 ## Note
 

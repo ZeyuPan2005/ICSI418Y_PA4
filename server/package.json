@@ -1,12 +1,13 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "ICSI418Y PA3 projects and project memberships API",
+  "description": "ICSI418Y PA4 projects, memberships, user stories, and backlog API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/app.test.js test/stories.test.js",
-    "test:integration": "node --test test/integration.test.js"
+    "test:integration": "node --test test/integration.test.js",
+    "seed:demo": "node seed-demo.js"
   },
   "keywords": [],
   "author": "",
